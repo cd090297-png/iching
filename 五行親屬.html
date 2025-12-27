@@ -1,0 +1,311 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五行親屬關係大考驗</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .option-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .option-btn:active {
+            transform: scale(0.97);
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden relative min-h-[600px] flex flex-col border border-slate-100">
+        
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-slate-800 to-slate-900 p-5 text-white text-center shadow-lg z-10">
+            <h1 class="text-xl font-bold tracking-widest text-indigo-100">五行親屬大考驗</h1>
+            <p class="text-xs text-slate-400 mt-1 uppercase tracking-tighter">Wuxing Relationship Quiz</p>
+        </div>
+
+        <div class="flex-grow p-6 flex flex-col relative">
+
+            <!-- 1. Start Screen -->
+            <div id="start-screen" class="absolute inset-0 p-8 flex flex-col items-center justify-center space-y-8 bg-white z-20">
+                <div class="w-32 h-32 bg-indigo-50 rounded-full flex items-center justify-center text-6xl shadow-inner">☯️</div>
+                <div class="text-center space-y-4">
+                    <h2 class="text-2xl font-bold text-slate-800">準備好挑戰五行邏輯了嗎？</h2>
+                    <div class="bg-amber-50 border border-amber-100 p-4 rounded-xl text-amber-900 text-sm leading-relaxed text-left">
+                        <p class="font-bold mb-1 underline">💡 設定規則：</p>
+                        體是老婆（木），用是我（土）<br>請參照五行展卦回答問題。
+                    </div>
+                </div>
+                <button onclick="game.start()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-10 rounded-2xl shadow-xl transform transition hover:-translate-y-1 text-lg w-full max-w-xs">
+                    進入測驗
+                </button>
+            </div>
+
+            <!-- 2. Quiz Screen -->
+            <div id="quiz-screen" class="hidden flex-col h-full fade-in">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="space-y-1">
+                        <span id="progress-text" class="text-xs font-bold text-slate-400 uppercase tracking-widest">Question 1 / 5</span>
+                        <div class="w-32 bg-slate-100 rounded-full h-1.5">
+                            <div id="progress-bar" class="bg-indigo-500 h-1.5 rounded-full transition-all duration-500" style="width: 20%"></div>
+                        </div>
+                    </div>
+                    <span id="score-display" class="bg-indigo-50 text-indigo-700 font-bold px-4 py-1.5 rounded-xl border border-indigo-100 text-sm">得分: 0</span>
+                </div>
+
+                <div class="mb-4 text-center py-2 px-4 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-500 font-medium italic">
+                    體老婆（木），用我（土）。請參照五行展卦回答。
+                </div>
+
+                <!-- 圖片顯示區域 -->
+                <div class="w-full h-44 bg-white rounded-2xl mb-6 flex items-center justify-center border border-slate-100 overflow-hidden relative shadow-sm">
+                    <img id="quiz-image" src="" alt="五行展卦圖" class="hidden object-contain h-full w-full p-2">
+                    <div id="image-loader" class="text-slate-300 flex flex-col items-center">
+                        <svg class="animate-spin h-8 w-8 mb-2" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="text-[10px] uppercase tracking-widest">圖片載入中</span>
+                    </div>
+                </div>
+
+                <div class="flex-grow flex flex-col">
+                    <h3 id="question-text" class="text-xl font-bold text-slate-800 mb-6 text-center leading-relaxed"></h3>
+                    <div id="options-container" class="grid grid-cols-2 gap-3 mb-6"></div>
+                </div>
+
+                <div id="feedback-area" class="hidden mb-20 bg-white border p-4 rounded-xl shadow-sm overflow-y-auto max-h-40 fade-in">
+                    <div class="flex items-center mb-1">
+                        <span id="feedback-icon" class="mr-2"></span>
+                        <span id="feedback-title" class="font-bold text-sm"></span>
+                    </div>
+                    <p id="feedback-explanation" class="text-slate-600 text-xs leading-relaxed"></p>
+                </div>
+
+                <div class="absolute bottom-0 left-0 right-0 p-6 bg-white/90 backdrop-blur-sm border-t border-slate-50">
+                    <button id="next-btn" onclick="game.nextQuestion()" class="w-full bg-slate-900 hover:bg-black text-white font-bold py-4 rounded-xl shadow-lg hidden transition-all">
+                        下一題
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. Result Screen -->
+            <div id="result-screen" class="hidden absolute inset-0 p-8 flex flex-col items-center justify-center space-y-8 bg-white z-20 fade-in">
+                <div id="result-icon" class="text-7xl">🎉</div>
+                <div class="text-center">
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">測驗完成！</h2>
+                    <p class="text-slate-400 font-medium mb-6">體老婆(木) / 用我(土)</p>
+                    <div class="text-7xl font-black text-indigo-600 mb-6"><span id="final-score">0</span><span class="text-2xl text-slate-300 ml-1">/ 5</span></div>
+                    <p id="result-message" class="text-lg font-bold text-slate-700 px-4"></p>
+                </div>
+                <button onclick="game.start()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-12 rounded-2xl shadow-xl w-full max-w-xs transition-transform active:scale-95">
+                    重新挑戰
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 已更新為您提供的圖片 ID
+        const GOOGLE_DRIVE_IMG_URL = "https://lh3.googleusercontent.com/u/0/d/1ASBx4TELETYVQNXn90FzPLmeao0c8DhX";
+
+        const rawData = [
+            { q: "我的奶奶是__？", opts: ["金", "水", "土", "木"], ans: "金", exp: "我為土，奶奶是爸爸（妻財/下2格）的媽媽(上1格)" },
+            { q: "老婆的奶奶是__？", opts: ["水", "金", "土", "火"], ans: "火", exp: "老婆為木，奶奶是爸爸（下2格）的媽媽(上1格)" },
+            { q: "老婆的兒子是__？", opts: ["水", "火", "金", "土"], ans: "火", exp: "老婆為木，木的小孩是我洩" },
+            { q: "我的父親是__？", opts: ["金", "火", "水", "土"], ans: "水", exp: "我是土，父親是媽媽（火）的官鬼（上兩格）" },
+            { q: "我的外婆是__？", opts: ["土", "火", "金", "木"], ans: "木", exp: "我為土，外婆是媽媽（上1格）的媽媽（上1格）" },
+            { q: "如果我外遇，那小三是__？", opts: ["土", "火", "木", "水"], ans: "水", exp: "我為土，感情格為我剋（下2格）" },
+            { q: "老婆的財格是__？", opts: ["土", "水", "火", "金"], ans: "土", exp: "老婆是木，財格為體的下兩格（我剋）" },
+            { q: "老婆的外婆是__？", opts: ["金", "土", "水", "木"], ans: "金", exp: "老婆為木，外婆是媽媽（上1格）的媽媽（上1格）" },
+            { q: "我的岳父是__？", opts: ["土", "金", "水", "木"], ans: "土", exp: "老婆是木，木的父親是財格" },
+            { q: "我的岳母是__？", opts: ["木", "火", "水", "金"], ans: "水", exp: "老婆為木，木的母親是生我格" },
+            { q: "老婆的爺爺是__？", opts: ["金", "火", "水", "土"], ans: "水", exp: "老婆為木，爺爺是爸爸（下2格）的爸爸（下2格）" },
+            { q: "我的外公是__？", opts: ["火", "木", "金", "土"], ans: "金", exp: "我為土，外公是媽媽（上1格）的爸爸（下2格）" },
+            { q: "如果老婆外遇，那小王是__？", opts: ["木", "金", "火", "土"], ans: "金", exp: "老婆為木，感情格為官鬼（下3格）" },
+            { q: "老婆的公司是__？", opts: ["土", "水", "木", "金"], ans: "金", exp: "老婆為木，下三格（官鬼）" },
+            { q: "我的母親是__？", opts: ["木", "土", "水", "火"], ans: "火", exp: "我是土，媽媽為生我（上一格）" },
+            { q: "我的財格是__？", opts: ["土", "木", "水", "金"], ans: "水", exp: "我是土，財格為我（體）的下兩格（我剋）" },
+            { q: "老婆的外公是__？", opts: ["火", "水", "金", "木"], ans: "火", exp: "老婆為木，外公是媽媽（上1格）的爸爸（下2格）" },
+            { q: "我的女兒是__？", opts: ["木", "金", "土", "火"], ans: "木", exp: "爸爸為土，小孩都是在官鬼（下3格）" },
+            { q: "我的爺爺是__？", opts: ["土", "木", "水", "火"], ans: "火", exp: "我為土，爺爺為爸爸（下2格）的爸爸（下2格）" },
+            { q: "我的公司是__？", opts: ["水", "火", "金", "木"], ans: "木", exp: "我為土，事業在下三格（官鬼）" }
+        ];
+
+        class Game {
+            constructor() {
+                this.questions = [];
+                this.currentIndex = 0;
+                this.score = 0;
+                this.isAnswered = false;
+                
+                this.screens = {
+                    start: document.getElementById('start-screen'),
+                    quiz: document.getElementById('quiz-screen'),
+                    result: document.getElementById('result-screen')
+                };
+                this.ui = {
+                    question: document.getElementById('question-text'),
+                    options: document.getElementById('options-container'),
+                    progressText: document.getElementById('progress-text'),
+                    progressBar: document.getElementById('progress-bar'),
+                    score: document.getElementById('score-display'),
+                    feedbackArea: document.getElementById('feedback-area'),
+                    feedbackTitle: document.getElementById('feedback-title'),
+                    feedbackExp: document.getElementById('feedback-explanation'),
+                    feedbackIcon: document.getElementById('feedback-icon'),
+                    nextBtn: document.getElementById('next-btn'),
+                    image: document.getElementById('quiz-image'),
+                    loader: document.getElementById('image-loader')
+                };
+
+                // 預載圖片
+                this.ui.image.onload = () => {
+                    this.ui.loader.classList.add('hidden');
+                    this.ui.image.classList.remove('hidden');
+                };
+                this.ui.image.onerror = () => {
+                    this.ui.loader.innerHTML = '<span class="text-red-400 text-[10px]">圖片連結失效</span>';
+                };
+                this.ui.image.src = GOOGLE_DRIVE_IMG_URL;
+            }
+
+            shuffle(array) {
+                return array.sort(() => Math.random() - 0.5);
+            }
+
+            start() {
+                const shuffled = this.shuffle([...rawData]);
+                this.questions = shuffled.slice(0, 5);
+                this.currentIndex = 0;
+                this.score = 0;
+                this.isAnswered = false;
+                this.ui.score.innerText = `得分: 0`;
+                this.switchScreen('quiz');
+                this.renderQuestion();
+            }
+
+            switchScreen(screenName) {
+                Object.values(this.screens).forEach(el => el.classList.add('hidden'));
+                this.screens[screenName].classList.remove('hidden');
+            }
+
+            renderQuestion() {
+                const qData = this.questions[this.currentIndex];
+                this.isAnswered = false;
+                this.ui.progressText.innerText = `Question ${this.currentIndex + 1} / 5`;
+                this.ui.progressBar.style.width = `${((this.currentIndex + 1) / 5) * 100}%`;
+                this.ui.question.innerText = qData.q;
+                this.ui.options.innerHTML = '';
+                this.ui.feedbackArea.classList.add('hidden');
+                this.ui.nextBtn.classList.add('hidden');
+
+                qData.opts.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn bg-white border border-slate-200 text-slate-700 font-bold py-4 rounded-2xl shadow-sm hover:border-indigo-500 hover:text-indigo-600 text-lg';
+                    btn.innerText = opt;
+                    btn.onclick = () => this.checkAnswer(opt, btn);
+                    this.ui.options.appendChild(btn);
+                });
+            }
+
+            checkAnswer(selected, btnElement) {
+                if (this.isAnswered) return;
+                this.isAnswered = true;
+
+                const qData = this.questions[this.currentIndex];
+                const isCorrect = selected === qData.ans;
+                const correctBtn = Array.from(this.ui.options.children).find(b => b.innerText === qData.ans);
+
+                Array.from(this.ui.options.children).forEach(b => {
+                    b.disabled = true;
+                    b.classList.add('opacity-40');
+                });
+
+                if (isCorrect) {
+                    this.score++;
+                    this.ui.score.innerText = `得分: ${this.score}`;
+                    btnElement.classList.remove('opacity-40', 'border-slate-200');
+                    btnElement.classList.add('bg-green-50', 'border-green-500', 'text-green-700', 'opacity-100');
+                    this.showFeedback(true, qData.exp);
+                } else {
+                    btnElement.classList.remove('opacity-40', 'border-slate-200');
+                    btnElement.classList.add('bg-red-50', 'border-red-500', 'text-red-700', 'opacity-100');
+                    if (correctBtn) {
+                        correctBtn.classList.remove('opacity-40', 'border-slate-200');
+                        correctBtn.classList.add('bg-green-50', 'border-green-500', 'text-green-700', 'opacity-100');
+                    }
+                    this.showFeedback(false, qData.exp, qData.ans);
+                }
+                this.ui.nextBtn.classList.remove('hidden');
+            }
+
+            showFeedback(isCorrect, explanation, correctAnswer = '') {
+                this.ui.feedbackArea.classList.remove('hidden', 'border-green-200', 'border-red-200');
+                if (isCorrect) {
+                    this.ui.feedbackArea.classList.add('border-green-200');
+                    this.ui.feedbackIcon.innerHTML = '✅';
+                    this.ui.feedbackTitle.innerText = '正確！';
+                    this.ui.feedbackTitle.className = 'font-bold text-sm text-green-700';
+                    this.ui.feedbackExp.innerText = explanation;
+                } else {
+                    this.ui.feedbackArea.classList.add('border-red-200');
+                    this.ui.feedbackIcon.innerHTML = '❌';
+                    this.ui.feedbackTitle.innerText = '答錯了';
+                    this.ui.feedbackTitle.className = 'font-bold text-sm text-red-700';
+                    this.ui.feedbackExp.innerHTML = `正解為【${correctAnswer}】。${explanation}`;
+                }
+            }
+
+            nextQuestion() {
+                if (this.currentIndex < 4) {
+                    this.currentIndex++;
+                    this.renderQuestion();
+                } else {
+                    this.showResults();
+                }
+            }
+
+            showResults() {
+                this.switchScreen('result');
+                document.getElementById('final-score').innerText = this.score;
+                let msg = this.score === 5 ? "絕頂聰明！五行邏輯大師！" : (this.score >= 3 ? "表現不錯！已掌握基本邏輯。" : "還需要多多練習五行卦象喔！");
+                document.getElementById('result-message').innerText = msg;
+                document.getElementById('result-icon').innerText = this.score === 5 ? "👑" : (this.score >= 3 ? "⭐" : "📖");
+            }
+        }
+
+        const game = new Game();
+    </script>
+</body>
+</html>
