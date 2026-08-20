@@ -424,22 +424,29 @@
       document.getElementById('resText1').innerHTML = 
         `本卦 <b>${benGuaName}</b> 自己與 <b>${yongRelation}</b> 共振帶 <b>${yongGua.name}${yongGua.wx}</b> 的五行能量`;
         
-      document.getElementById('resText2').innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 10px; text-align: center; line-height: 1.5; font-size: 16px;">
+document.getElementById('resText2').innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: flex-start; flex-wrap: nowrap; gap: 5px; text-align: center; line-height: 1.4; font-size: 15px; overflow-x: auto; white-space: nowrap;">
           <div>互卦</div>
           <div><b>${huGuaName}</b></div>
           <div>從</div>
-          <div style="display: flex; flex-direction: column; gap: 4px;">
+          
+          <!-- 左側上下排列的關係格 -->
+          <div style="display: flex; flex-direction: column; gap: 2px;">
             <div><b>${huTiRelation}</b></div>
-            <div style="font-size: 0.9em;">與</div>
+            <div style="font-size: 0.85em;">與</div>
             <div><b>${huYongRelation}</b></div>
           </div>
+          
           <div>共振帶</div>
+          
+          <!-- 右側上下排列的五行能量 -->
           <div style="display: flex; flex-direction: column; justify-content: space-between;">
             <div><b>${huTiGua.name}${huTiGua.wx}</b></div>
-            <div style="visibility: hidden; font-size: 0.9em;">與</div> 
+            <!-- 隱藏的「與」字，用來把上下空間撐開 -->
+            <div style="visibility: hidden; font-size: 0.85em;">與</div> 
             <div><b>${huYongGua.name}${huYongGua.wx}</b></div>
           </div>
+          
           <div>的五行能量</div>
         </div>
       `;
