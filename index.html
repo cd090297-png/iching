@@ -2,9 +2,8 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <!-- 強制手機以 1:1 比例顯示 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>易經開卦系統 (獨立運作版)</title>
+  <title>易經開卦系統 (圖示初階版)</title>
   <style>
     body {
       font-family: 'Helvetica Neue', Helvetica, Arial, 'Microsoft JhengHei', sans-serif;
@@ -43,7 +42,7 @@
       color: #555;
       font-weight: bold;
     }
-   input[type="number"], select {
+    input[type="number"], select {
       width: 100%;
       box-sizing: border-box;
       padding: 12px;
@@ -95,7 +94,14 @@
     .box-title {
       font-size: 13px;
       color: #666;
-      margin-bottom: 6px;
+      margin-bottom: 2px;
+    }
+    /* --- 卦象圖示樣式 --- */
+    .box-symbol {
+      font-size: 52px;
+      line-height: 1.1;
+      margin: 5px 0;
+      color: #34495e;
     }
     .box-value {
       font-size: 17px;
@@ -117,13 +123,53 @@
       font-weight: bold;
       font-size: 20px;
     }
+    .calc-process {
+      background: #f0f7f4;
+      border-left: 5px solid #52a786;
+      padding: 15px;
+      margin-top: 25px;
+      border-radius: 0 8px 8px 0;
+      font-size: 15px;
+      line-height: 1.8;
+      color: #3b5a4b;
+    }
+    .calc-process h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      color: #2c7a59;
+      font-size: 18px;
+    }
+    .calc-step {
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #c1dcd0;
+    }
+    .calc-step:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    .math-hl {
+      background-color: #d8eadf;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      color: #1e5a40;
+    }
+    /* --- 更新時間樣式 --- */
+    .update-time {
+      text-align: right;
+      color: #999;
+      font-size: 13px;
+      margin-top: 15px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>開卦試算 (獨立版)</h2>
+    <h2>開卦試算 (初階版)</h2>
     
-<div class="form-row">
+    <div class="form-row">
       <div class="input-group">
         <label>第1把</label>
         <input type="number" id="num1" required>
@@ -165,23 +211,26 @@
         <span id="resGuiRen" class="highlight"></span>
       </div>
 
-      <!-- 卦象區 (變卦在左，本卦在右) -->
+      <!-- 卦象區 -->
       <div class="grid-3">
         <div class="box">
           <div class="box-title">變卦</div>
+          <div class="box-symbol" id="symBianGua"></div>
           <div class="box-value" id="resBianGua"></div>
         </div>
         <div class="box">
           <div class="box-title">互卦</div>
+          <div class="box-symbol" id="symHuGua"></div>
           <div class="box-value" id="resHuGua"></div>
         </div>
         <div class="box">
           <div class="box-title">本卦</div>
+          <div class="box-symbol" id="symBenGua"></div>
           <div class="box-value" id="resBenGua"></div>
         </div>
       </div>
 
-      <!-- 體用區 (用/互用 在左，體/互體 在右) -->
+      <!-- 體用區 -->
       <div class="grid-3">
         <div class="box">
           <div class="box-title">變</div>
@@ -197,16 +246,21 @@
         </div>
       </div>
 
-      <!-- 五行共振能量區 (變卦 -> 互卦 -> 本卦) -->
+      <!-- 五行共振能量區 -->
       <div class="resonance-text" id="resText1"></div>
       <div class="resonance-text" id="resText2"></div>
       <div class="resonance-text" id="resText3"></div>
+      
+      <!-- 教學運算解析區 -->
+      <div id="calcProcessArea" class="calc-process"></div>
+
+      <!-- 更新時間 -->
+      <div id="updateTime" class="update-time"></div>
 
     </div>
   </div>
 
   <script>
-    // 基礎參數設定：八卦陣列與對應的五行、二進位爻碼 (由下而上)
     const trigrams = {
       1: { name: '乾', wx: '金', bits: '111' },
       2: { name: '兌', wx: '金', bits: '110' },
@@ -222,7 +276,6 @@
       '111': 1, '110': 2, '101': 3, '100': 4, '011': 5, '010': 6, '001': 7, '000': 8
     };
 
-    // 64卦名稱對照表 (上卦 + 下卦)
     const hexagramNames = {
       '乾乾': '乾為天', '乾兌': '天澤履', '乾離': '天火同人', '乾震': '天雷無妄', '乾巽': '天風姤', '乾坎': '天水訟', '乾艮': '天山遯', '乾坤': '天地否',
       '兌乾': '澤天夬', '兌兌': '兌為澤', '兌離': '澤火革', '兌震': '澤雷隨', '兌巽': '澤風大過', '兌坎': '澤水困', '兌艮': '澤山咸', '兌坤': '澤地萃',
@@ -232,6 +285,18 @@
       '坎乾': '水天需', '坎兌': '水澤節', '坎離': '水火既濟', '坎震': '水雷屯', '坎巽': '水風井', '坎坎': '坎為水', '坎艮': '水山蹇', '坎坤': '水地比',
       '艮乾': '山天大畜', '艮兌': '山澤損', '艮離': '山火賁', '艮震': '山雷頤', '艮巽': '山風蠱', '艮坎': '山水蒙', '艮艮': '艮為山', '艮坤': '山地剝',
       '坤乾': '地天泰', '坤兌': '地澤臨', '坤離': '地火明夷', '坤震': '地雷復', '坤巽': '地風升', '坤坎': '地水師', '坤艮': '地山謙', '坤坤': '坤為地'
+    };
+
+    // --- 64卦 Unicode 圖示對照表 ---
+    const hexagramSymbols = {
+      '乾為天': '䷀', '坤為地': '䷁', '水雷屯': '䷂', '山水蒙': '䷃', '水天需': '䷄', '天水訟': '䷅', '地水師': '䷆', '水地比': '䷇',
+      '風天小畜': '䷈', '天澤履': '䷉', '地天泰': '䷊', '天地否': '䷋', '天火同人': '䷌', '火天大有': '䷍', '地山謙': '䷎', '雷地豫': '䷏',
+      '澤雷隨': '䷐', '山風蠱': '䷑', '地澤臨': '䷒', '風地觀': '䷓', '火雷噬嗑': '䷔', '山火賁': '䷕', '山地剝': '䷖', '地雷復': '䷗',
+      '天雷無妄': '䷘', '山天大畜': '䷙', '山雷頤': '䷚', '澤風大過': '䷛', '坎為水': '䷜', '離為火': '䷝', '澤山咸': '䷞', '雷風恆': '䷟',
+      '天山遯': '䷠', '雷天大壯': '䷡', '火地晉': '䷢', '地火明夷': '䷣', '風火家人': '䷤', '火澤睽': '䷥', '水山蹇': '䷦', '雷水解': '䷧',
+      '山澤損': '䷨', '風雷益': '䷩', '澤天夬': '䷪', '天風姤': '䷫', '澤地萃': '䷬', '地風升': '䷭', '澤水困': '䷮', '水風井': '䷯',
+      '澤火革': '䷰', '火風鼎': '䷱', '震為雷': '䷲', '艮為山': '䷳', '風山漸': '䷴', '雷澤歸妹': '䷵', '雷火豐': '䷶', '火山旅': '䷷',
+      '巽為風': '䷸', '兌為澤': '䷹', '風水渙': '䷺', '水澤節': '䷻', '風澤中孚': '䷼', '雷山小過': '䷽', '水火既濟': '䷾', '火水未濟': '䷿'
     };
 
     function runCalculation() {
@@ -244,48 +309,40 @@
         alert("請輸入完整的數字");
         return;
       }
-
-      // --- 核心運算邏輯 (完全脫離試算表) ---
       
-      // 1. 求本卦之上卦與下卦 (除以8取餘數)
       let upperIdx = num1 % 8 || 8;
       let lowerIdx = (num2 + num3) % 8 || 8;
-      
-      // 2. 求動爻 (除以6取餘數)
       let movingYao = (num1 + num2 + num3 + time) % 6 || 6;
 
       const upperGua = trigrams[upperIdx];
       const lowerGua = trigrams[lowerIdx];
 
-      // 3. 取得本卦 6 爻字串 (由下而上)
       let yaosArr = (lowerGua.bits + upperGua.bits).split('');
 
-      // 4. 計算互卦 (234爻為下，345爻為上)
-      let huLowerBits = yaosArr[1] + yaosArr[2] + yaosArr[3];
-      let huUpperBits = yaosArr[2] + yaosArr[3] + yaosArr[4];
-      const huLowerGua = trigrams[bitsMap[huLowerBits]];
-      const huUpperGua = trigrams[bitsMap[huUpperBits]];
-
-      // 5. 計算變卦 (將動爻陰陽互換)
       let bianYaosArr = [...yaosArr];
-      let mIndex = movingYao - 1; // 陣列為 0-based
+      let mIndex = movingYao - 1; 
       bianYaosArr[mIndex] = bianYaosArr[mIndex] === '1' ? '0' : '1';
       let bianLowerBits = bianYaosArr[0] + bianYaosArr[1] + bianYaosArr[2];
       let bianUpperBits = bianYaosArr[3] + bianYaosArr[4] + bianYaosArr[5];
       const bianLowerGua = trigrams[bitsMap[bianLowerBits]];
       const bianUpperGua = trigrams[bitsMap[bianUpperBits]];
 
-      // 6. 判斷體用 (有動爻的卦為「用」，不動的卦為「體」)
+      let benGuaStr = yaosArr.join('');
+      let sourceYaosArr = (benGuaStr === '111111' || benGuaStr === '000000') ? bianYaosArr : yaosArr;
+
+      let huLowerBits = sourceYaosArr[1] + sourceYaosArr[2] + sourceYaosArr[3];
+      let huUpperBits = sourceYaosArr[2] + sourceYaosArr[3] + sourceYaosArr[4];
+      const huLowerGua = trigrams[bitsMap[huLowerBits]];
+      const huUpperGua = trigrams[bitsMap[huUpperBits]];
+
       let tiGua, yongGua, huTiGua, huYongGua, bianTransformed;
       if (movingYao <= 3) {
-        // 動爻在下：下為用、上為體。互體亦取上，變卦取變動的下卦
         tiGua = upperGua;
         yongGua = lowerGua;
         huTiGua = huUpperGua;
         huYongGua = huLowerGua;
         bianTransformed = bianLowerGua;
       } else {
-        // 動爻在上：上為用、下為體。互體亦取下，變卦取變動的上卦
         tiGua = lowerGua;
         yongGua = upperGua;
         huTiGua = huLowerGua;
@@ -293,62 +350,51 @@
         bianTransformed = bianUpperGua;
       }
 
-      // 7. 取出卦名
       const benGuaName = hexagramNames[upperGua.name + lowerGua.name];
       const huGuaName = hexagramNames[huUpperGua.name + huLowerGua.name];
       const bianGuaName = hexagramNames[bianUpperGua.name + bianLowerGua.name];
 
-      // 8. 計算貴人 (依身強身弱與全局五行數量判定)
-      
-      // 步驟 A：收集 5 個位置的五行
       const elementsArray = [tiGua.wx, yongGua.wx, huTiGua.wx, huYongGua.wx, bianTransformed.wx];
-      
-      // 步驟 B：統計五行出現次數
       const wxCounts = { '金': 0, '木': 0, '水': 0, '火': 0, '土': 0 };
       elementsArray.forEach(wx => wxCounts[wx]++);
 
-      // 定義「生我」的對照表
       const shengMeMap = { '金': '土', '木': '水', '水': '金', '火': '木', '土': '火' };
-      const myWx = tiGua.wx;              // 「體」的五行
-      const shengMyWx = shengMeMap[myWx]; // 「生體」的五行
+      const myWx = tiGua.wx;              
+      const shengMyWx = shengMeMap[myWx]; 
 
-      // 步驟 C：計算身強或身弱 (體 + 生體的總數量)
       const strengthCount = wxCounts[myWx] + wxCounts[shengMyWx];
 
       let bodyStatus = "";
       let guiRen = "";
 
-      // 步驟 D：依照規則判斷貴人
       if (strengthCount >= 3) {
         bodyStatus = "身強";
-        // 身強則往下找沒有出現的五行為貴人
-        // 定義相生循環，方便「往下找」
         const generateCycle = ['木', '火', '土', '金', '水'];
         let startIndex = generateCycle.indexOf(myWx);
-        let missingElements = [];
         
-        // 從自己往後繞一圈，找出數量為 0 的五行
         for (let i = 1; i <= 4; i++) {
           let checkWx = generateCycle[(startIndex + i) % 5];
           if (wxCounts[checkWx] === 0) {
-            missingElements.push(checkWx);
+            guiRen = checkWx;
+            break; 
           }
         }
-        guiRen = missingElements.join("、"); 
-        
       } else {
         bodyStatus = "身弱";
-        // 身弱首求 生“體”的五行
         guiRen = shengMyWx;
       }
 
-      // --- 更新畫面資料 ---
-      
       document.getElementById('resultArea').style.display = 'block';
 
+      // 填入卦名
       document.getElementById('resBenGua').innerText = benGuaName;
       document.getElementById('resHuGua').innerText = huGuaName;
       document.getElementById('resBianGua').innerText = bianGuaName;
+
+      // 填入六十四卦 Unicode 圖示
+      document.getElementById('symBenGua').innerText = hexagramSymbols[benGuaName];
+      document.getElementById('symHuGua').innerText = hexagramSymbols[huGuaName];
+      document.getElementById('symBianGua').innerText = hexagramSymbols[bianGuaName];
 
       document.getElementById('resTi').innerText = tiGua.name + tiGua.wx;
       document.getElementById('resYong').innerText = yongGua.name + yongGua.wx;
@@ -356,63 +402,96 @@
       document.getElementById('resHuYong').innerText = huYongGua.name + huYongGua.wx;
       document.getElementById('resBian').innerText = bianTransformed.name + bianTransformed.wx;
 
-// 顯示包含身強身弱的貴人結果
-document.getElementById('resGuiRen').innerText = `${guiRen} (${bodyStatus})`;
-// 9. 判斷五行生剋關係函數
+      document.getElementById('resGuiRen').innerText = `${guiRen} (${bodyStatus})`;
+
       function getRelationName(tiWx, targetWx) {
-        // 定義相生與相剋的對應關係
         const shengMap = {'金':'水', '水':'木', '木':'火', '火':'土', '土':'金'};
         const keMap = {'金':'木', '木':'土', '土':'水', '水':'火', '火':'金'};
         
         if (tiWx === targetWx) return "自己";
-        if (shengMap[targetWx] === tiWx) return "智慧、家庭格"; // 生我
-        if (shengMap[tiWx] === targetWx) return "付出、慾望格"; // 我生
-        if (keMap[tiWx] === targetWx) return "目標、妻財格";   // 我剋
-        if (keMap[targetWx] === tiWx) return "壓力、官鬼格";   // 剋我
+        if (shengMap[targetWx] === tiWx) return "智慧、家庭格"; 
+        if (shengMap[tiWx] === targetWx) return "付出、慾望格"; 
+        if (keMap[tiWx] === targetWx) return "目標、妻財格";   
+        if (keMap[targetWx] === tiWx) return "壓力、官鬼格";   
         return "未知";
       }
 
-      // 取得各卦與「體卦」的五行生剋格局
       const yongRelation = getRelationName(tiGua.wx, yongGua.wx);
       const huTiRelation = getRelationName(tiGua.wx, huTiGua.wx);
       const huYongRelation = getRelationName(tiGua.wx, huYongGua.wx);
       const bianRelation = getRelationName(tiGua.wx, bianTransformed.wx);
 
-      // 組合共振文字
       document.getElementById('resText1').innerHTML = 
         `本卦 <b>${benGuaName}</b> 自己與 <b>${yongRelation}</b> 共振帶 <b>${yongGua.name}${yongGua.wx}</b> 的五行能量`;
         
-document.getElementById('resText2').innerHTML = `
-  <div style="display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 10px; text-align: center; line-height: 1.5; font-size: 16px;">
-    <div>互卦</div>
-    <div><b>${huGuaName}</b></div>
-    <div>從</div>
-    
-    <!-- 左側上下排列的關係格 -->
-    <div style="display: flex; flex-direction: column; gap: 4px;">
-      <div><b>${huTiRelation}</b></div>
-      <div style="font-size: 0.9em;">與</div>
-      <div><b>${huYongRelation}</b></div>
-    </div>
-    
-    <div>共振帶</div>
-    
-    <!-- 右側上下排列的五行能量 -->
-    <div style="display: flex; flex-direction: column; justify-content: space-between;">
-      <div><b>${huTiGua.name}${huTiGua.wx}</b></div>
-      <!-- 隱藏的「與」字，用來把上下空間撐開，達到與左側完美水平對齊的效果 -->
-      <div style="visibility: hidden; font-size: 0.9em;">與</div> 
-      <div><b>${huYongGua.name}${huYongGua.wx}</b></div>
-    </div>
-    
-    <div>的五行能量</div>
-  </div>
-`;
+      document.getElementById('resText2').innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 10px; text-align: center; line-height: 1.5; font-size: 16px;">
+          <div>互卦</div>
+          <div><b>${huGuaName}</b></div>
+          <div>從</div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div><b>${huTiRelation}</b></div>
+            <div style="font-size: 0.9em;">與</div>
+            <div><b>${huYongRelation}</b></div>
+          </div>
+          <div>共振帶</div>
+          <div style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div><b>${huTiGua.name}${huTiGua.wx}</b></div>
+            <div style="visibility: hidden; font-size: 0.9em;">與</div> 
+            <div><b>${huYongGua.name}${huYongGua.wx}</b></div>
+          </div>
+          <div>的五行能量</div>
+        </div>
+      `;
         
       document.getElementById('resText3').innerHTML = 
         `變卦 <b>${bianGuaName}</b> 和 <b>${bianRelation}</b> 共振帶 <b>${bianTransformed.name}${bianTransformed.wx}</b> 的五行能量`;
 
-    }
+      const qUpper = Math.floor(num1 / 8);
+      const sumLower = num2 + num3;
+      const qLower = Math.floor(sumLower / 8);
+      const sumYao = num1 + num2 + num3 + time;
+      const qYao = Math.floor(sumYao / 6);
+
+      const huSourceText = (benGuaStr === '111111' || benGuaStr === '000000') 
+        ? `因本卦為純卦，故取<b>變卦</b>` 
+        : `取<b>本卦</b>`;
+
+      const processHTML = `
+        <h3>💡 運算過程解析</h3>
+        <div class="calc-step">
+          <b>【1. 求本卦】</b><br>
+          上卦：第 1 把 <span class="math-hl">${num1}</span> ÷ 8 = ${qUpper} 餘 <span class="math-hl">${upperIdx}</span>，對應先天八卦為「${upperGua.name}」。<br>
+          下卦：(第 2 把 ${num2} + 第 3 把 ${num3}) = <span class="math-hl">${sumLower}</span> ÷ 8 = ${qLower} 餘 <span class="math-hl">${lowerIdx}</span>，對應「${lowerGua.name}」。<br>
+          ➤ 故本卦為 <b>${upperGua.name}${lowerGua.name} (${benGuaName})</b>。
+        </div>
+        <div class="calc-step">
+          <b>【2. 求變爻與體用】</b><br>
+          動爻：(第1把 ${num1} + 第2把 ${num2} + 第3把 ${num3} + 時間 ${time}) = <span class="math-hl">${sumYao}</span> ÷ 6 = ${qYao} 餘 <span class="math-hl">${movingYao}</span>。<br>
+          ➤ 變爻在第 <b>${movingYao}</b> 爻 (由下往上數)。<br>
+          ➤ <b>沒有動爻</b>的卦為「體」(<span class="math-hl">${tiGua.name}</span>)，<b>有動爻</b>的卦為「用」(<span class="math-hl">${yongGua.name}</span>)。
+        </div>
+        <div class="calc-step">
+          <b>【3. 求互卦】</b><br>
+          ${huSourceText}的第 2、3、4 爻組成下卦 (<span class="math-hl">${huLowerGua.name}</span>)；第 3、4、5 爻組成上卦 (<span class="math-hl">${huUpperGua.name}</span>)。<br>
+          ➤ 故互卦為 <b>${huUpperGua.name}${huLowerGua.name} (${huGuaName})</b>。
+        </div>
+        <div class="calc-step">
+          <b>【4. 求變卦】</b><br>
+          將本卦的第 <b>${movingYao}</b> 爻陰陽互換。<br>
+          ➤ 故變卦為 <b>${bianUpperGua.name}${bianLowerGua.name} (${bianGuaName})</b>。
+        </div>
+      `;
+
+      document.getElementById('calcProcessArea').innerHTML = processHTML;
+
+      // 取得並顯示當下的更新時間
+      const now = new Date();
+      // 使用 24 小時制，格式化為 年/月/日 時:分:秒
+      const timeString = now.toLocaleString('zh-TW', { hour12: false });
+      document.getElementById('updateTime').innerText = `更新時間：${timeString}`;
+      
+    } 
   </script>
 </body>
 </html>
