@@ -4,6 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>易經開卦系統 (圖示初階版)</title>
+  
+  <!-- 引入開源的曆法套件：自動精算當日節氣與地支月令 -->
+  <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
+
   <style>
     body {
       font-family: 'Helvetica Neue', Helvetica, Arial, 'Microsoft JhengHei', sans-serif;
@@ -28,21 +32,23 @@
     }
     .form-row {
       display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
       gap: 15px;
       margin-bottom: 25px;
     }
     .input-group {
-      display: flex;
-      flex-direction: column;
+      flex: 1; min-width: 110px; display: flex; flex-direction: column;
     }
+    /* 讓問題輸入框獨佔一行 */
+    .full-width { flex: 1 1 100%; } 
+
     label {
       font-size: 16px;
       margin-bottom: 8px;
       color: #555;
       font-weight: bold;
     }
-    input[type="number"], select {
+    input[type="number"], input[type="text"], select {
       width: 100%;
       box-sizing: border-box;
       padding: 12px;
@@ -52,7 +58,7 @@
       text-align: center;
       background-color: #fafbfc;
     }
-    input[type="number"]:focus, select:focus {
+    input[type="number"]:focus, input[type="text"]:focus, select:focus {
       outline: none;
       border-color: #4a6fa5;
       background-color: #fff;
@@ -79,6 +85,42 @@
       border-top: 2px dashed #e1e4e8;
       display: none;
     }
+    
+    .layout-wrapper { display: flex; flex-direction: column; gap: 30px; margin-bottom: 20px; }
+    .gua-panel { width: 100%; }
+    .wuxing-panel { width: 100%; padding-top: 20px; border-top: 2px dashed #eee; }
+
+    /* 五行方塊樣式 */
+    .wx-grid { 
+      display: grid; 
+      grid-template-columns: repeat(3, 1fr); 
+      gap: 40px 8px; 
+      justify-items: center; 
+      align-items: start; 
+    }
+    .wx-item { display: flex; flex-direction: column; align-items: center; }
+    
+    .wx-box {
+      width: 65px; height: 65px; 
+      border: 2px solid #333; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; position: relative; background: #fff;
+    }
+    
+    .wx-char { font-size: 30px; font-weight: bold; }
+    .wx-count { position: absolute; top: -22px; left: -5px; font-weight: bold; font-size: 16px; color: #333; }
+    .wx-label-top { position: absolute; font-size: 14px; text-align: center; white-space: nowrap; color: #333; font-weight: bold; top: -22px; width: 100%; }
+    .wx-label-bottom { font-size: 14px; color: #333; font-weight: bold; margin-top: 6px; margin-bottom: 4px; text-align: center; }
+    
+    .wx-sources { text-align: center; }
+    .wx-source-line { font-size: 14px; color: #555; margin-bottom: 3px; white-space: nowrap; line-height: 1.3; font-weight: bold; }
+
+    /* 顏色區分 */
+    .wx-color-火 { color: #d32f2f; }
+    .wx-color-土 { color: #8d6e63; }
+    .wx-color-金 { color: #fbc02d; }
+    .wx-color-水 { color: #1976d2; }
+    .wx-color-木 { color: #388e3c; }
+
     .grid-3 {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -123,6 +165,20 @@
       font-weight: bold;
       font-size: 20px;
     }
+    
+    /* 底部內心卦樣式 */
+    .neixin-area {
+      display: flex;
+      justify-content: space-around;
+      border-top: 2px dashed #eee;
+      padding-top: 20px;
+      margin-top: 10px;
+      margin-bottom: 25px;
+      font-size: 16px;
+      font-weight: bold;
+      color: #333;
+    }
+
     .calc-process {
       background: #f0f7f4;
       border-left: 5px solid #52a786;
@@ -170,6 +226,30 @@
     <h2>開卦試算 (初階版)</h2>
     
     <div class="form-row">
+      <!-- 測問事項 -->
+      <div class="input-group full-width">
+        <label>測問事項</label>
+        <input type="text" id="question" placeholder="請輸入問題">
+      </div>
+      
+      <div class="input-group">
+        <label>月令(地支)</label>
+        <select id="month" required>
+          <!-- 系統會在此自動插入今天的月令 -->
+          <option value="1">1月 (寅)</option>
+          <option value="2">2月 (卯)</option>
+          <option value="3">3月 (辰)</option>
+          <option value="4">4月 (巳)</option>
+          <option value="5">5月 (午)</option>
+          <option value="6">6月 (未)</option>
+          <option value="7">7月 (申)</option>
+          <option value="8">8月 (酉)</option>
+          <option value="9">9月 (戌)</option>
+          <option value="10">10月 (亥)</option>
+          <option value="11">11月 (子)</option>
+          <option value="12">12月 (丑)</option>
+        </select>
+      </div>
       <div class="input-group">
         <label>第1把</label>
         <input type="number" id="num1" required>
@@ -206,47 +286,75 @@
 
     <div id="resultArea" class="result-area">
       
-      <div style="text-align: center; margin-bottom: 20px;">
-        <span style="font-size: 18px; font-weight: bold; color: #555;">貴人：</span>
-        <span id="resGuiRen" class="highlight"></span>
+      <!-- 顯示測問事項區塊 -->
+      <div id="resQuestionArea" style="text-align: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #e1e4e8; display: none;">
+        <span style="font-size: 20px; font-weight: bold; color: #333;">問題：</span>
+        <span id="resQuestion" style="font-size: 20px; font-weight: bold; color: #1976d2;"></span>
       </div>
 
-      <!-- 卦象區 -->
-      <div class="grid-3">
-        <div class="box">
-          <div class="box-title">變卦</div>
-          <div class="box-symbol" id="symBianGua"></div>
-          <div class="box-value" id="resBianGua"></div>
+      <div style="text-align: center; margin-bottom: 20px; display: flex; justify-content: center; flex-wrap: wrap; gap: 15px;">
+        <div>
+          <span style="font-size: 18px; font-weight: bold; color: #555;">貴人：</span>
+          <span id="resGuiRen" class="highlight"></span>
         </div>
-        <div class="box">
-          <div class="box-title">互卦</div>
-          <div class="box-symbol" id="symHuGua"></div>
-          <div class="box-value" id="resHuGua"></div>
-        </div>
-        <div class="box">
-          <div class="box-title">本卦</div>
-          <div class="box-symbol" id="symBenGua"></div>
-          <div class="box-value" id="resBenGua"></div>
+        <div>
+          <span style="font-size: 18px; font-weight: bold; color: #555;">卦氣合化：</span>
+          <span id="resGuaQi" class="highlight"></span>
         </div>
       </div>
 
-      <!-- 體用區 -->
-      <div class="grid-3">
-        <div class="box">
-          <div class="box-title">變</div>
-          <div class="box-value" id="resBian"></div>
+      <div class="layout-wrapper">
+        <!-- 卦象區 -->
+        <div class="gua-panel">
+          <div class="grid-3">
+            <div class="box">
+              <div class="box-title">變卦</div>
+              <div class="box-symbol" id="symBianGua"></div>
+              <div class="box-value" id="resBianGua"></div>
+            </div>
+            <div class="box">
+              <div class="box-title">互卦</div>
+              <div class="box-symbol" id="symHuGua"></div>
+              <div class="box-value" id="resHuGua"></div>
+            </div>
+            <div class="box">
+              <div class="box-title">本卦</div>
+              <div class="box-symbol" id="symBenGua"></div>
+              <div class="box-value" id="resBenGua"></div>
+            </div>
+          </div>
+
+          <!-- 體用區 -->
+          <div class="grid-3">
+            <div class="box">
+              <div class="box-title">變</div>
+              <div class="box-value" id="resBian"></div>
+            </div>
+            <div class="box">
+              <div class="box-title">互用 / 互體</div>
+              <div class="box-value"><span id="resHuYong"></span> / <span id="resHuTi"></span></div>
+            </div>
+            <div class="box">
+              <div class="box-title">用 / 體</div>
+              <div class="box-value"><span id="resYong"></span> / <span id="resTi"></span></div>
+            </div>
+          </div>
         </div>
-        <div class="box">
-          <div class="box-title">互用 / 互體</div>
-          <div class="box-value"><span id="resHuYong"></span> / <span id="resHuTi"></span></div>
-        </div>
-        <div class="box">
-          <div class="box-title">用 / 體</div>
-          <div class="box-value"><span id="resYong"></span> / <span id="resTi"></span></div>
+
+        <!-- 五行佈局區 -->
+        <div class="wuxing-panel">
+          <div style="text-align: center; color: #666; font-size: 15px; font-weight: bold; margin-bottom: 25px;">【 五行能量與卦名分佈 】</div>
+          <div class="wx-grid" id="wxGridArea"></div>
         </div>
       </div>
+      
+      <!-- 最下方：內心卦 -->
+      <div class="neixin-area">
+        <div>內心(體)： <span id="resNeiXinTi" style="color: #d32f2f;"></span></div>
+        <div>內心(用)： <span id="resNeiXinYong"></span></div>
+      </div>
 
-      <!-- 五行共振能量區 -->
+      <!-- 五行共振能量區文字解說 -->
       <div class="resonance-text" id="resText1"></div>
       <div class="resonance-text" id="resText2"></div>
       <div class="resonance-text" id="resText3"></div>
@@ -261,6 +369,30 @@
   </div>
 
   <script>
+    // --- 頁面載入時自動取得今天的節氣月令 ---
+    window.onload = function() {
+      try {
+        const today = new Date();
+        const lunar = Lunar.fromDate(today);
+        // 取得精確的節氣月地支 (如: 寅, 卯...)
+        const autoMonthZhi = lunar.getMonthZhiExact(); 
+        
+        // 將地支轉換為系統使用的月份數字
+        const zhiToMonth = { '寅':1, '卯':2, '辰':3, '巳':4, '午':5, '未':6, '申':7, '酉':8, '戌':9, '亥':10, '子':11, '丑':12 };
+        const autoMonthNum = zhiToMonth[autoMonthZhi];
+        
+        // 在選單最上方插入自動計算的選項並預設選中
+        const monthSelect = document.getElementById('month');
+        const autoOption = document.createElement('option');
+        autoOption.value = autoMonthNum;
+        autoOption.selected = true;
+        autoOption.text = `[自動] ${autoMonthNum}月(${autoMonthZhi})`;
+        monthSelect.insertBefore(autoOption, monthSelect.firstChild);
+      } catch(e) {
+        console.log("曆法載入失敗，將使用手動選單", e);
+      }
+    };
+
     const trigrams = {
       1: { name: '乾', wx: '金', bits: '111' },
       2: { name: '兌', wx: '金', bits: '110' },
@@ -299,16 +431,30 @@
       '巽為風': '䷸', '兌為澤': '䷹', '風水渙': '䷺', '水澤節': '䷻', '風澤中孚': '䷼', '雷山小過': '䷽', '水火既濟': '䷾', '火水未濟': '䷿'
     };
 
+    const shengMap = {'金':'水', '水':'木', '木':'火', '火':'土', '土':'金'};
+    const keMap = {'金':'木', '木':'土', '土':'水', '水':'火', '火':'金'};
+    const wxColors = { '火': '#d32f2f', '土': '#8d6e63', '金': '#fbc02d', '水': '#1976d2', '木': '#388e3c' };
+
     function runCalculation() {
+      const questionText = document.getElementById('question').value.trim();
+      const month = parseInt(document.getElementById('month').value);
       const num1 = parseInt(document.getElementById('num1').value);
       const num2 = parseInt(document.getElementById('num2').value);
       const num3 = parseInt(document.getElementById('num3').value);
       const time = parseInt(document.getElementById('time').value);
 
-      if(!num1 || !num2 || !num3 || !time) {
-        alert("請輸入完整的數字");
+      if(!month || !num1 || !num2 || !num3 || !time) {
+        alert("請輸入完整的資料");
         return;
       }
+      
+      // 地支六合：判斷卦氣合化
+      let guaQi = "";
+      if (month === 1 || month === 10) guaQi = "木";
+      else if (month === 2 || month === 9 || month === 5 || month === 6) guaQi = "火";
+      else if (month === 11 || month === 12) guaQi = "土";
+      else if (month === 3 || month === 8) guaQi = "金";
+      else if (month === 4 || month === 7) guaQi = "水";
       
       let upperIdx = num1 % 8 || 8;
       let lowerIdx = (num2 + num3) % 8 || 8;
@@ -353,6 +499,26 @@
       const benGuaName = hexagramNames[upperGua.name + lowerGua.name];
       const huGuaName = hexagramNames[huUpperGua.name + huLowerGua.name];
       const bianGuaName = hexagramNames[bianUpperGua.name + bianLowerGua.name];
+      
+      // --- 內心卦(體) - 錯卦：本卦所有爻互換(1變0, 0變1) ---
+      let cuoYaosArr = yaosArr.map(b => b === '1' ? '0' : '1');
+      const cuoLowerGua = trigrams[bitsMap[cuoYaosArr.slice(0,3).join('')]];
+      const cuoUpperGua = trigrams[bitsMap[cuoYaosArr.slice(3,6).join('')]];
+      const neiXinTiName = hexagramNames[cuoUpperGua.name + cuoLowerGua.name];
+
+      // --- 內心卦(用) - 綜卦：本卦翻轉180度 (陣列順序反轉) ---
+      let zongYaosArr = [...yaosArr].reverse();
+      const zongLowerGua = trigrams[bitsMap[zongYaosArr.slice(0,3).join('')]];
+      const zongUpperGua = trigrams[bitsMap[zongYaosArr.slice(3,6).join('')]];
+      const neiXinYongName = hexagramNames[zongUpperGua.name + zongLowerGua.name];
+      
+      const guaSourcesAll = [
+        { id: '體', tri: tiGua, hex: benGuaName, show: false }, 
+        { id: '1', tri: yongGua, hex: benGuaName, show: true }, 
+        { id: '2', tri: huTiGua, hex: huGuaName, show: true },  
+        { id: '3', tri: huYongGua, hex: huGuaName, show: true },
+        { id: '4', tri: bianTransformed, hex: bianGuaName, show: true } 
+      ];
 
       const elementsArray = [tiGua.wx, yongGua.wx, huTiGua.wx, huYongGua.wx, bianTransformed.wx];
       const wxCounts = { '金': 0, '木': 0, '水': 0, '火': 0, '土': 0 };
@@ -385,6 +551,14 @@
       }
 
       document.getElementById('resultArea').style.display = 'block';
+      
+      // 更新問題區塊
+      if (questionText) {
+        document.getElementById('resQuestion').innerText = questionText;
+        document.getElementById('resQuestionArea').style.display = 'block';
+      } else {
+        document.getElementById('resQuestionArea').style.display = 'none';
+      }
 
       // 填入卦名
       document.getElementById('resBenGua').innerText = benGuaName;
@@ -403,16 +577,70 @@
       document.getElementById('resBian').innerText = bianTransformed.name + bianTransformed.wx;
 
       document.getElementById('resGuiRen').innerText = `${guiRen} (${bodyStatus})`;
+      document.getElementById('resGuaQi').innerText = guaQi;
+      document.getElementById('resGuaQi').style.color = wxColors[guaQi] || '#d35400';
+
+      document.getElementById('resNeiXinTi').innerText = neiXinTiName;
+      document.getElementById('resNeiXinYong').innerText = neiXinYongName;
+
+      // --- 五行佈局繪製 ---
+      const rel = {
+        tiWx: myWx,
+        shengMe: shengMyWx,
+        meSheng: Object.keys(shengMap).find(k => shengMap[k] === myWx),
+        keMe: Object.keys(keMap).find(k => keMap[k] === myWx),
+        meKe: keMap[myWx]
+      };
+      // 確保我生(付出格) 的邏輯是正確的： shengMap 中，誰生誰？
+      // 若 myWx = 金, 我生什麼？水 (shengMap['金'] == '水') => meSheng 應為 '水'
+      // 修正 rel 的指派
+      rel.meSheng = shengMap[myWx];
+      rel.keMe = Object.keys(keMap).find(k => keMap[k] === myWx);
+      rel.meKe = keMap[myWx];
+
+      const circledNum = { '1': '①', '2': '②', '3': '③', '4': '④' };
+      
+      const buildBox = (wx, labelTop, labelBottom) => {
+        let sourcesHTML = '';
+        const matches = guaSourcesAll.filter(s => s.tri.wx === wx && s.show);
+        
+        matches.forEach((m) => {
+           sourcesHTML += `<div class="wx-source-line">${circledNum[m.id]} ${m.tri.name}：${m.hex}</div>`;
+        });
+
+        return `
+          <div class="wx-item">
+            <div class="wx-box wx-color-${wx}">
+              <div class="wx-count">${wxCounts[wx] || ''}</div>
+              <div class="wx-label-top">${labelTop}</div>
+              <span class="wx-char">${wx}</span>
+            </div>
+            <div class="wx-label-bottom">${labelBottom}</div>
+            <div class="wx-sources">
+              ${sourcesHTML}
+            </div>
+          </div>
+        `;
+      };
+
+      document.getElementById('wxGridArea').innerHTML = `
+        ${buildBox(rel.shengMe, '生我', '家庭格')}
+        <div></div>
+        ${buildBox(rel.tiWx, '體', bodyStatus)}
+        ${buildBox(rel.keMe, '剋我', '官鬼格')}
+        ${buildBox(rel.meKe, '我剋', '妻財格')}
+        ${buildBox(rel.meSheng, '我生', '付出格')}
+      `;
 
       function getRelationName(tiWx, targetWx) {
-        const shengMap = {'金':'水', '水':'木', '木':'火', '火':'土', '土':'金'};
-        const keMap = {'金':'木', '木':'土', '土':'水', '水':'火', '火':'金'};
+        const shengMapLocal = {'金':'水', '水':'木', '木':'火', '火':'土', '土':'金'};
+        const keMapLocal = {'金':'木', '木':'土', '土':'水', '水':'火', '火':'金'};
         
         if (tiWx === targetWx) return "自己";
-        if (shengMap[targetWx] === tiWx) return "智慧、家庭格"; 
-        if (shengMap[tiWx] === targetWx) return "付出、慾望格"; 
-        if (keMap[tiWx] === targetWx) return "目標、妻財格";   
-        if (keMap[targetWx] === tiWx) return "壓力、官鬼格";   
+        if (shengMapLocal[targetWx] === tiWx) return "智慧、家庭格"; 
+        if (shengMapLocal[tiWx] === targetWx) return "付出、慾望格"; 
+        if (keMapLocal[tiWx] === targetWx) return "目標、妻財格";   
+        if (keMapLocal[targetWx] === tiWx) return "壓力、官鬼格";   
         return "未知";
       }
 
@@ -424,7 +652,7 @@
       document.getElementById('resText1').innerHTML = 
         `本卦 <b>${benGuaName}</b> 自己與 <b>${yongRelation}</b> 共振帶 <b>${yongGua.name}${yongGua.wx}</b> 的五行能量`;
         
-document.getElementById('resText2').innerHTML = `
+      document.getElementById('resText2').innerHTML = `
         <div style="display: flex; align-items: center; justify-content: flex-start; flex-wrap: nowrap; gap: 5px; text-align: center; line-height: 1.4; font-size: 15px; overflow-x: auto; white-space: nowrap;">
           <div>互卦</div>
           <div><b>${huGuaName}</b></div>
